@@ -1,4 +1,6 @@
 
+# Don't add the blog data itself to git :)
+blog.xml
 
 
 # Created by https://www.gitignore.io/api/pycharm,virtualenv
