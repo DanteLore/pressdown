@@ -41,6 +41,8 @@ def convert_content(c):
     c = re.sub(r'<ul.*?>(.*?)</ul>', '\g<1>', c, flags=re.MULTILINE)
     c = re.sub(r'<li.*?>(.*?)</li>', '* \g<1>\n', c, flags=re.MULTILINE)
     c = re.sub(r'<em>(.*?)</em>', '*\g<1>*', c, flags=re.MULTILINE)
+    c = re.sub(r'<strong>(.*?)</strong>', '**\g<1>**', c, flags=re.MULTILINE)
+    c = re.sub(r'<b>(.*?)</b>', '**\g<1>**', c, flags=re.MULTILINE)
     c = re.sub(r'<del>(.*?)</del>', '~~\g<1>~~', c, flags=re.MULTILINE)
     c = re.sub(r'</?figure.*?>', '', c, flags=re.MULTILINE)
     c = re.sub(r'<figcaption>.*?</figcaption>', '', c, flags=re.MULTILINE)
