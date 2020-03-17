@@ -63,7 +63,8 @@ def convert_content(c):
     # Code blocks
     c = re.sub(r'<code.*?>(.*?)</code>', r'```\g<1>```', c) # Inline code block
     c = re.sub(r'<code.*?>([\S\s]*?)</code>', r'\n```\n\g<1>\n```\n', c, flags=re.MULTILINE) # Multi-line code block
-    c = re.sub(r'<pre.*?>([\S\s]*?)</pre>', r'\n```\n\g<1>\n```\n', c, flags=re.MULTILINE) # Preformatted
+    c = re.sub(r'<pre>([\S\s]*?)</pre>', r'\n```\n\g<1>\n```\n', c, flags=re.MULTILINE) # Simple preformatted block
+    c = re.sub(r'<pre.*?wp-block.*?>([\S\s]*?)</pre>', r'\g<1>', c, flags=re.MULTILINE) # Extra wordpress pre in clode blocks
     c = re.sub(r'<!-- wp:syntaxhighlighter/code {"language":"(.*?)"} -->\n?([\S\s]*?)\n?<!-- /wp:syntaxhighlighter/code -->',
                r'\n```\g<1>\n\g<2>\n```\n', c, flags=re.MULTILINE)
     c = re.sub(r'\[sourcecode lang[^=]*?="(.*?)"\]\n?([\S\s]*?)\[/sourcecode\]',
@@ -99,7 +100,7 @@ def write_post(item):
         f.write('\n---\n')
         f.write('title: "{0}"\n\n'.format(title))
         f.write('date: "{0}"\n\n'.format(published))
-        f.write('featured_image = "{0}"'.format(first_image))
+        f.write('featured_image: "{0}"'.format(first_image))
         f.write('\n---\n\n\n')
         f.write(content)
 
