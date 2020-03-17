@@ -77,16 +77,28 @@ def convert_content(c):
     return c
 
 
+def find_first_image(content):
+    images = [name for (name, extension) in re.findall(r'(http://[^\"<>]*?(.png|.jpg))', content)]
+    return images[0] if images else ""
+
+
 def write_post(item):
     title = get(item, 'title')
     published = datetime.strptime(get(item, 'post_date'), '%Y-%m-%d %H:%M:%S').isoformat()
     status = get(item, 'status')
     filename = 'output/{0}.md'.format(get(item, 'post_name'))
     content = convert_content(get(item, 'content:encoded'))
+
+    first_image = find_first_image(content)
+
     print("\n\nCONVERTING POST: {0}\n\nFilename: {1}\nPost Date: {2}\nStatus: {3}".format(title, filename, published, status))
 
     with open(filename, 'w') as f:
-        f.write('\n---\ntitle: "{0}"\ndate: {1}\ndraft: {2}\n---\n\n'.format(title, published, status != 'publish'))
+        f.write('\n---\n')
+        f.write('title: "{0}"\n\n'.format(title))
+        f.write('date: "{0}"\n\n'.format(published))
+        f.write('featured_image = "{0}"'.format(first_image))
+        f.write('\n---\n\n\n')
         f.write(content)
 
 
