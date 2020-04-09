@@ -77,6 +77,7 @@ def convert_content(c):
 
     # Excessive newlines
     c = re.sub(r'\n\n\n', r'\n', c, flags=re.MULTILINE)
+    c = re.sub(r'>\n#', r'>\n\n#', c, flags=re.MULTILINE)
     return c
 
 
