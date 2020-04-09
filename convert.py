@@ -24,10 +24,17 @@ def convert_content(c):
     c = re.sub(r'<!-- /?wp:heading.*?-->', '', c, flags=re.MULTILINE)
     c = re.sub(r'<!-- /?wp:image.*?-->', '', c, flags=re.MULTILINE)
     c = re.sub(r'<!-- /?wp:code.*?-->', '', c, flags=re.MULTILINE)
-    c = re.sub(r'<!-- /?wp:gallery.*?-->', '', c, flags=re.MULTILINE)
     c = re.sub(r'<!-- /?wp:list.*?-->', '', c, flags=re.MULTILINE)
     c = re.sub(r'<!-- /?wp:separator.*?-->', '', c, flags=re.MULTILINE)
     c = re.sub(r'<!-- /?wp:quote.*?-->', '', c, flags=re.MULTILINE)
+
+    # Images and galleries
+    c = re.sub(r'<!-- /?wp:gallery.*?-->', '', c, flags=re.MULTILINE)
+    c = re.sub(r'<ul.*?wp-block-gallery.*?>(.*?)</ul.*?>', '\g<1>', c, flags=re.MULTILINE)
+    c = re.sub(r'<li.*?blocks-gallery-item.*?>.*?<img.*?src="([^\"]*)".*?/>.*?</li>',
+               r'<GALLERY_IMAGE_HOP class="gallery" src="\g<1>"/>', c, flags=re.MULTILINE)
+    c = re.sub(r'<img.*?src="([^\"]*)".*?/>', '<img src="\g<1>"/>', c, flags=re.MULTILINE)
+    c = re.sub(r'<GALLERY_IMAGE_HOP(.*?)/>', '<img\g<1>/>', c, flags=re.MULTILINE)
 
     # HTML elements
     c = re.sub(r'<h1>(.*?)</h1>', r'# \g<1>', c, flags=re.MULTILINE)
@@ -38,8 +45,6 @@ def convert_content(c):
     c = re.sub(r'</?p .*?>', '', c, flags=re.MULTILINE)
     c = re.sub(r'</?div.*?>', '', c, flags=re.MULTILINE)
     c = re.sub(r'<br.*?>', '\n', c, flags=re.MULTILINE)
-    c = re.sub(r'<ul.*?>(.*?)</ul>', '\g<1>', c, flags=re.MULTILINE)
-    c = re.sub(r'<li.*?>(.*?)</li>', '* \g<1>\n', c, flags=re.MULTILINE)
     c = re.sub(r'<em>(.*?)</em>', '*\g<1>*', c, flags=re.MULTILINE)
     c = re.sub(r'<strong>(.*?)</strong>', '**\g<1>**', c, flags=re.MULTILINE)
     c = re.sub(r'<b>(.*?)</b>', '**\g<1>**', c, flags=re.MULTILINE)
@@ -51,11 +56,6 @@ def convert_content(c):
     #YouTube
     c = re.sub(r'<!-- wp:core-embed/youtube.*?-->[\S\s]*?https://youtu.be/([^\s]*)[\S\s]*?<!-- /wp:core-embed/youtube -->',
                r'\n{{< youtube \g<1> >}}\n', c, flags=re.MULTILINE)
-
-    # Images and galleries
-    c = re.sub(r'<li class="blocks-gallery-item">.*?<img.*?src="([^\"]*)".*?/>.*?</li>',
-               r'<img src="\g<1>" class="gallery"/>', c, flags=re.MULTILINE)
-    c = re.sub(r'<img.*?src="([^\"]*)".*?/>', '<img src="\g<1>"/>', c, flags=re.MULTILINE)
 
     # Clean up hyperlinks
     c = re.sub(r'<a.*href="(.*?)".*?>(.*?)</a>', r'<a href="\g<1>">\g<2></a>', c, flags=re.MULTILINE)
