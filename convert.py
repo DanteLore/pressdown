@@ -1,7 +1,10 @@
+import os
 import re
 
 from bs4 import BeautifulSoup
 from datetime import datetime
+
+import requests
 
 
 def get(root, element):
@@ -82,18 +85,46 @@ def convert_content(c):
 
 
 def find_first_image(content):
-    images = [name for (name, extension) in re.findall(r'(http://[^\"<>]*?(.png|.jpg))', content)]
+    images = find_all_images(content)
     return images[0] if images else ""
 
 
-def write_post(item):
+image_pattern = re.compile(r'src="(http://[^\"<>]*?(.png|.jpg|.jpeg|.gif))"', re.IGNORECASE)
+
+
+def find_all_images(content):
+    images = [name for (name, extension) in re.findall(image_pattern, content)]
+    return images
+
+
+def write_post(item, output_dir):
+    posts_dir = '{0}/content/posts'.format(output_dir)
+    images_dir = '{0}/static/images/{1}'.format(output_dir, get(item, 'post_name'))
+    filename = '{0}/{1}.md'.format(posts_dir, get(item, 'post_name'))
+
+    if not os.path.exists(posts_dir):
+        os.makedirs(posts_dir)
+    if not os.path.exists(images_dir):
+        os.makedirs(images_dir)
+
     title = get(item, 'title')
     published = datetime.strptime(get(item, 'post_date'), '%Y-%m-%d %H:%M:%S').isoformat()
     status = get(item, 'status')
-    filename = 'output/{0}.md'.format(get(item, 'post_name'))
     content = convert_content(get(item, 'content:encoded'))
 
     first_image = find_first_image(content)
+
+    images = find_all_images(content)
+    for url in images:
+        f = url.split('/')[-1]
+        image_file = "{0}/{1}".format(images_dir, f)
+
+        if not os.path.exists(image_file):
+            print("Downloading {0}\nto {1}".format(url, image_file))
+            r = requests.get(url, allow_redirects=True)
+            open(image_file, 'wb').write(r.content)
+        else:
+            print("{0} already downloaded".format(image_file))
 
     print("\n\nCONVERTING POST: {0}\n\nFilename: {1}\nPost Date: {2}\nStatus: {3}".format(title, filename, published, status))
 
@@ -107,9 +138,8 @@ def write_post(item):
 
 
 if __name__ == "__main__":
-
-    for item in items:
-        t = get(item, "post_type")
+    for i in items:
+        t = get(i, "post_type")
 
         if t == "post":
-            write_post(item)
+            write_post(i, 'hugo')
