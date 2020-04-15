@@ -4,6 +4,8 @@ blog.xml
 hugo/*
 .DS_Store
 
+__pycache__/*
+
 # Created by https://www.gitignore.io/api/pycharm,virtualenv
 # Edit at https://www.gitignore.io/?templates=pycharm,virtualenv
 
