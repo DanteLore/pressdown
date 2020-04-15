@@ -89,7 +89,7 @@ def find_first_image(content):
     return images[0] if images else ""
 
 
-image_pattern = re.compile(r'src="(http://[^\"<>]*?(.png|.jpg|.jpeg|.gif))"', re.IGNORECASE)
+image_pattern = re.compile(r'src="([^\"<>]*?(.png|.jpg|.jpeg|.gif))"', re.IGNORECASE)
 
 
 def find_all_images(content):
@@ -125,9 +125,10 @@ def write_post(item):
         if not os.path.exists(image_file):
             print("Downloading {0}\nto {1}\nUrl {2}".format(url, image_file, image_url))
             download_image(image_file, url)
-            content = content.replace(url, image_url)
         else:
             print("{0} already downloaded".format(image_file))
+
+        content = content.replace(url, image_url)
 
     print("\n\nCONVERTING POST: {0}\n\nFilename: {1}\nPost Date: {2}\nStatus: {3}".format(title, filename, published, status))
 
