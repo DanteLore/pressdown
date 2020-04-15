@@ -1,45 +1,64 @@
 import os
 import re
+import requests
 
 from bs4 import BeautifulSoup
 from datetime import datetime
-
-import requests
 
 
 def get(root, element):
     return root.find(element).string.strip()
 
 
-# Need to use "xml" not "lxml" here (as suggested by most tutorials) because lxml can't handle CDATA's
-soup = BeautifulSoup(open("blog.xml"), features="xml")
-
-items = soup.find_all('item')
-
-
 def convert_content(c):
-    # Wordpress tags
-    c = c.replace('&nbsp;', ' ')
-    c = c.replace('&quot;', '"')
-    c = c.replace('&gt;', '>')
-    c = c.replace('&lt;', '<')
-    c = re.sub(r'<!-- /?wp:paragraph.*?-->', '', c, flags=re.MULTILINE)
-    c = re.sub(r'<!-- /?wp:heading.*?-->', '', c, flags=re.MULTILINE)
-    c = re.sub(r'<!-- /?wp:image.*?-->', '', c, flags=re.MULTILINE)
-    c = re.sub(r'<!-- /?wp:code.*?-->', '', c, flags=re.MULTILINE)
-    c = re.sub(r'<!-- /?wp:list.*?-->', '', c, flags=re.MULTILINE)
-    c = re.sub(r'<!-- /?wp:separator.*?-->', '', c, flags=re.MULTILINE)
-    c = re.sub(r'<!-- /?wp:quote.*?-->', '', c, flags=re.MULTILINE)
+    c = convert_wordpress_tags(c)
+    c = convert_images_and_galleries(c)
+    c = convert_html_elements(c)
+    c = convert_youtube(c)
+    c = clean_hyperlinks(c)
+    c = convert_code_blocks(c)
+    c = strip_excessive_newlines(c)
+    return c
 
-    # Images and galleries
-    c = re.sub(r'<!-- /?wp:gallery.*?-->', '', c, flags=re.MULTILINE)
-    c = re.sub(r'<ul.*?wp-block-gallery.*?>(.*?)</ul.*?>', '\g<1>', c, flags=re.MULTILINE)
-    c = re.sub(r'<li.*?blocks-gallery-item.*?>.*?<img.*?src="([^\"]*)".*?/>.*?</li>',
-               r'<GALLERY_IMAGE_HOP class="gallery" src="\g<1>"/>', c, flags=re.MULTILINE)
-    c = re.sub(r'<img.*?src="([^\"]*)".*?/>', '<img src="\g<1>"/>', c, flags=re.MULTILINE)
-    c = re.sub(r'<GALLERY_IMAGE_HOP(.*?)/>', '<img\g<1>/>', c, flags=re.MULTILINE)
 
-    # HTML elements
+def strip_excessive_newlines(c):
+    c = re.sub(r'\n\n\n', r'\n', c, flags=re.MULTILINE)
+    c = re.sub(r'>\n#', r'>\n\n#', c, flags=re.MULTILINE)
+    return c
+
+
+def convert_code_blocks(c):
+    c = re.sub(r'<code.*?>(.*?)</code>', r'```\g<1>```', c)  # Inline code block
+    c = re.sub(r'<code.*?>([\S\s]*?)</code>', r'\n```\n\g<1>\n```\n', c, flags=re.MULTILINE)  # Multi-line code block
+    c = re.sub(r'<pre>([\S\s]*?)</pre>', r'\n```\n\g<1>\n```\n', c, flags=re.MULTILINE)  # Simple preformatted block
+    c = re.sub(r'<pre.*?wp-block.*?>([\S\s]*?)</pre>', r'\g<1>', c,
+               flags=re.MULTILINE)  # Extra wordpress pre in clode blocks
+    c = re.sub(
+        r'<!-- wp:syntaxhighlighter/code {"language":"(.*?)"} -->\n?([\S\s]*?)\n?<!-- /wp:syntaxhighlighter/code -->',
+        r'\n```\g<1>\n\g<2>\n```\n', c, flags=re.MULTILINE)
+    c = re.sub(r'\[sourcecode lang[^=]*?="(.*?)"\]\n?([\S\s]*?)\[/sourcecode\]',
+               r'\n```\g<1>\n\g<2>\n```\n', c, flags=re.MULTILINE)
+    c = re.sub(r'<!-- wp:syntaxhighlighter/code -->\n?([\S\s]*?)\n?<!-- /wp:syntaxhighlighter/code -->',
+               r'```\n\g<1>\n```', c, flags=re.MULTILINE)
+    c = re.sub(r'<!-- wp:preformatted -->([\S\s]*?)<!-- /wp:preformatted -->',
+               r'```\n\g<1>\n```', c, flags=re.MULTILINE)
+    c = re.sub(r'```jscript', r'```javascript', c)
+    return c
+
+
+def clean_hyperlinks(c):
+    c = re.sub(r'<a.*href="(.*?)".*?>(.*?)</a>', r'<a href="\g<1>">\g<2></a>', c, flags=re.MULTILINE)
+    return c
+
+
+def convert_youtube(c):
+    c = re.sub(
+        r'<!-- wp:core-embed/youtube.*?-->[\S\s]*?https://youtu.be/([^\s]*)[\S\s]*?<!-- /wp:core-embed/youtube -->',
+        r'\n{{< youtube \g<1> >}}\n', c, flags=re.MULTILINE)
+    return c
+
+
+def convert_html_elements(c):
     c = re.sub(r'<h1>(.*?)</h1>', r'# \g<1>', c, flags=re.MULTILINE)
     c = re.sub(r'<h2>(.*?)</h2>', r'## \g<1>', c, flags=re.MULTILINE)
     c = re.sub(r'<h3>(.*?)</h3>', r'### \g<1>', c, flags=re.MULTILINE)
@@ -55,32 +74,31 @@ def convert_content(c):
     c = re.sub(r'</?figure.*?>', '', c, flags=re.MULTILINE)
     c = re.sub(r'<figcaption>.*?</figcaption>', '', c, flags=re.MULTILINE)
     c = re.sub(r'<hr.*?>', '\n---\n', c, flags=re.MULTILINE)
+    return c
 
-    #YouTube
-    c = re.sub(r'<!-- wp:core-embed/youtube.*?-->[\S\s]*?https://youtu.be/([^\s]*)[\S\s]*?<!-- /wp:core-embed/youtube -->',
-               r'\n{{< youtube \g<1> >}}\n', c, flags=re.MULTILINE)
 
-    # Clean up hyperlinks
-    c = re.sub(r'<a.*href="(.*?)".*?>(.*?)</a>', r'<a href="\g<1>">\g<2></a>', c, flags=re.MULTILINE)
+def convert_images_and_galleries(c):
+    c = re.sub(r'<!-- /?wp:gallery.*?-->', '', c, flags=re.MULTILINE)
+    c = re.sub(r'<ul.*?wp-block-gallery.*?>(.*?)</ul.*?>', '\g<1>', c, flags=re.MULTILINE)
+    c = re.sub(r'<li.*?blocks-gallery-item.*?>.*?<img.*?src="([^\"]*)".*?/>.*?</li>',
+               r'<GALLERY_IMAGE_HOP class="gallery" src="\g<1>"/>', c, flags=re.MULTILINE)
+    c = re.sub(r'<img.*?src="([^\"]*)".*?/>', '<img src="\g<1>"/>', c, flags=re.MULTILINE)
+    c = re.sub(r'<GALLERY_IMAGE_HOP(.*?)/>', '<img\g<1>/>', c, flags=re.MULTILINE)
+    return c
 
-    # Code blocks
-    c = re.sub(r'<code.*?>(.*?)</code>', r'```\g<1>```', c) # Inline code block
-    c = re.sub(r'<code.*?>([\S\s]*?)</code>', r'\n```\n\g<1>\n```\n', c, flags=re.MULTILINE) # Multi-line code block
-    c = re.sub(r'<pre>([\S\s]*?)</pre>', r'\n```\n\g<1>\n```\n', c, flags=re.MULTILINE) # Simple preformatted block
-    c = re.sub(r'<pre.*?wp-block.*?>([\S\s]*?)</pre>', r'\g<1>', c, flags=re.MULTILINE) # Extra wordpress pre in clode blocks
-    c = re.sub(r'<!-- wp:syntaxhighlighter/code {"language":"(.*?)"} -->\n?([\S\s]*?)\n?<!-- /wp:syntaxhighlighter/code -->',
-               r'\n```\g<1>\n\g<2>\n```\n', c, flags=re.MULTILINE)
-    c = re.sub(r'\[sourcecode lang[^=]*?="(.*?)"\]\n?([\S\s]*?)\[/sourcecode\]',
-               r'\n```\g<1>\n\g<2>\n```\n', c, flags=re.MULTILINE)
-    c = re.sub(r'<!-- wp:syntaxhighlighter/code -->\n?([\S\s]*?)\n?<!-- /wp:syntaxhighlighter/code -->',
-               r'```\n\g<1>\n```', c, flags=re.MULTILINE)
-    c = re.sub(r'<!-- wp:preformatted -->([\S\s]*?)<!-- /wp:preformatted -->',
-               r'```\n\g<1>\n```', c, flags=re.MULTILINE)
-    c = re.sub(r'```jscript', r'```javascript', c)
 
-    # Excessive newlines
-    c = re.sub(r'\n\n\n', r'\n', c, flags=re.MULTILINE)
-    c = re.sub(r'>\n#', r'>\n\n#', c, flags=re.MULTILINE)
+def convert_wordpress_tags(c):
+    c = c.replace('&nbsp;', ' ')
+    c = c.replace('&quot;', '"')
+    c = c.replace('&gt;', '>')
+    c = c.replace('&lt;', '<')
+    c = re.sub(r'<!-- /?wp:paragraph.*?-->', '', c, flags=re.MULTILINE)
+    c = re.sub(r'<!-- /?wp:heading.*?-->', '', c, flags=re.MULTILINE)
+    c = re.sub(r'<!-- /?wp:image.*?-->', '', c, flags=re.MULTILINE)
+    c = re.sub(r'<!-- /?wp:code.*?-->', '', c, flags=re.MULTILINE)
+    c = re.sub(r'<!-- /?wp:list.*?-->', '', c, flags=re.MULTILINE)
+    c = re.sub(r'<!-- /?wp:separator.*?-->', '', c, flags=re.MULTILINE)
+    c = re.sub(r'<!-- /?wp:quote.*?-->', '', c, flags=re.MULTILINE)
     return c
 
 
@@ -95,6 +113,14 @@ image_pattern = re.compile(r'src="([^\"<>]*?(.png|.jpg|.jpeg|.gif))"', re.IGNORE
 def find_all_images(content):
     images = [name for (name, extension) in re.findall(image_pattern, content)]
     return images
+
+
+def write_header(f, first_image, published, title):
+    f.write('\n---\n')
+    f.write('title: "{0}"\n\n'.format(title))
+    f.write('date: "{0}"\n\n'.format(published))
+    f.write('featured_image: "{0}"'.format(first_image))
+    f.write('\n---\n\n\n')
 
 
 def write_post(item):
@@ -130,14 +156,11 @@ def write_post(item):
 
         content = content.replace(url, image_url)
 
-    print("\n\nCONVERTING POST: {0}\n\nFilename: {1}\nPost Date: {2}\nStatus: {3}".format(title, filename, published, status))
+    print("\n\nCONVERTING POST: {0}\n\nFilename: {1}\nPost Date: {2}\nStatus: {3}".format(title, filename, published,
+                                                                                          status))
 
     with open(filename, 'w') as f:
-        f.write('\n---\n')
-        f.write('title: "{0}"\n\n'.format(title))
-        f.write('date: "{0}"\n\n'.format(published))
-        f.write('featured_image: "{0}"'.format(first_image))
-        f.write('\n---\n\n\n')
+        write_header(f, first_image, published, title)
         f.write(content)
 
 
@@ -154,19 +177,27 @@ def download_image(image_file, url):
         return False
 
 
-if __name__ == "__main__":
-
+def check_hugo_dir():
     if not os.path.exists('hugo'):
         os.makedirs('hugo')
 
+
+def convert_blog():
+    # Need to use "xml" not "lxml" here (as suggested by most tutorials) because lxml can't handle CDATA's
+    soup = BeautifulSoup(open("blog.xml"), features="xml")
+    items = soup.find_all('item')
+
+    check_hugo_dir()
+
     pwd = os.getcwd()
     os.chdir('hugo')
-
     try:
         for i in items:
-            t = get(i, "post_type")
-
-            if t == "post":
+            if get(i, "post_type") == "post":
                 write_post(i)
     finally:
         os.chdir(pwd)
+
+
+if __name__ == "__main__":
+    convert_blog()
