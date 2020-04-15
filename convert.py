@@ -97,15 +97,14 @@ def find_all_images(content):
     return images
 
 
-def write_post(item, output_dir):
-    posts_dir = '{0}/content/posts'.format(output_dir)
-    images_dir = '{0}/static/images/{1}'.format(output_dir, get(item, 'post_name'))
+def write_post(item):
+    posts_dir = 'content/posts'
+    images_url_root = '/images/{0}'.format(get(item, 'post_name'))
+    images_dir = 'static/images/{0}'.format(get(item, 'post_name'))
     filename = '{0}/{1}.md'.format(posts_dir, get(item, 'post_name'))
 
     if not os.path.exists(posts_dir):
         os.makedirs(posts_dir)
-    if not os.path.exists(images_dir):
-        os.makedirs(images_dir)
 
     title = get(item, 'title')
     published = datetime.strptime(get(item, 'post_date'), '%Y-%m-%d %H:%M:%S').isoformat()
@@ -116,13 +115,17 @@ def write_post(item, output_dir):
 
     images = find_all_images(content)
     for url in images:
-        f = url.split('/')[-1]
-        image_file = "{0}/{1}".format(images_dir, f)
+        if not os.path.exists(images_dir):
+            os.makedirs(images_dir)
+
+        fn = url.split('/')[-1]
+        image_url = "{0}/{1}".format(images_url_root, fn)
+        image_file = "{0}/{1}".format(images_dir, fn)
 
         if not os.path.exists(image_file):
-            print("Downloading {0}\nto {1}".format(url, image_file))
-            r = requests.get(url, allow_redirects=True)
-            open(image_file, 'wb').write(r.content)
+            print("Downloading {0}\nto {1}\nUrl {2}".format(url, image_file, image_url))
+            download_image(image_file, url)
+            content = content.replace(url, image_url)
         else:
             print("{0} already downloaded".format(image_file))
 
@@ -137,9 +140,32 @@ def write_post(item, output_dir):
         f.write(content)
 
 
-if __name__ == "__main__":
-    for i in items:
-        t = get(i, "post_type")
+def download_image(image_file, url):
+    r = requests.get(url, stream=True, headers={"User-Agent": "Dante Crazy Browse 2.6"})
+    if r.status_code == 200:
+        with open(image_file, 'wb') as f:
+            for chunk in r:
+                f.write(chunk)
 
-        if t == "post":
-            write_post(i, 'hugo')
+        return True
+    else:
+        print("ERROR {0}".format(r.status_code))
+        return False
+
+
+if __name__ == "__main__":
+
+    if not os.path.exists('hugo'):
+        os.makedirs('hugo')
+
+    pwd = os.getcwd()
+    os.chdir('hugo')
+
+    try:
+        for i in items:
+            t = get(i, "post_type")
+
+            if t == "post":
+                write_post(i)
+    finally:
+        os.chdir(pwd)
