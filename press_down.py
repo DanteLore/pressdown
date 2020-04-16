@@ -1,8 +1,6 @@
 import os
 from datetime import datetime
-
 from bs4 import BeautifulSoup
-
 from image_helper import ImageHelper
 from post_converter import PostConverter
 
@@ -12,14 +10,10 @@ def get(root, element):
 
 
 class PressDown:
-    def __init__(self, source_file="blog.xml"):
+    def __init__(self, source_file="blog.xml", posts_dir='content/posts'):
         # Need to use "xml" not "lxml" here (as suggested by most tutorials) because lxml can't handle CDATA's
         self.soup = BeautifulSoup(open(source_file), features="xml")
-
-    def convert(self):
-        for i in self.soup.find_all('item'):
-            if get(i, "post_type") == "post":
-                self.write_post(i)
+        self.posts_dir = posts_dir
 
     @staticmethod
     def write_header(f, first_image, published, title):
@@ -29,17 +23,19 @@ class PressDown:
         f.write('featured_image: "{0}"'.format(first_image))
         f.write('\n---\n\n\n')
 
+    def check_posts_dir(self):
+        if not os.path.exists(self.posts_dir):
+            os.makedirs(self.posts_dir)
+
     def write_post(self, item):
-        posts_dir = 'content/posts'
-        filename = '{0}/{1}.md'.format(posts_dir, get(item, 'post_name'))
+        filename = '{0}/{1}.md'.format(self.posts_dir, get(item, 'post_name'))
 
         img = ImageHelper(
             images_dir='static/images/{0}'.format(get(item, 'post_name')),
             images_url_root='/images/{0}'.format(get(item, 'post_name'))
         )
 
-        if not os.path.exists(posts_dir):
-            os.makedirs(posts_dir)
+        self.check_posts_dir()
 
         title = get(item, 'title')
         published = datetime.strptime(get(item, 'post_date'), '%Y-%m-%d %H:%M:%S').isoformat()
@@ -66,3 +62,8 @@ class PressDown:
         with open(filename, 'w') as f:
             self.write_header(f, first_image, published, title)
             f.write(content)
+
+    def convert(self):
+        for i in self.soup.find_all('item'):
+            if get(i, "post_type") == "post":
+                self.write_post(i)

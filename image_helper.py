@@ -18,8 +18,7 @@ class ImageHelper:
         return images[0] if images else ""
 
     def convert_image(self, original_url):
-        if not os.path.exists(self.images_dir):
-            os.makedirs(self.images_dir)
+        self.check_images_dir()
         fn = original_url.split('/')[-1]
         image_url = "{0}/{1}".format(self.images_url_root, fn)
         image_file = "{0}/{1}".format(self.images_dir, fn)
@@ -29,6 +28,10 @@ class ImageHelper:
         else:
             print("{0} already downloaded".format(image_file))
         return image_url
+
+    def check_images_dir(self):
+        if not os.path.exists(self.images_dir):
+            os.makedirs(self.images_dir)
 
     @staticmethod
     def download_image(image_file, url):
