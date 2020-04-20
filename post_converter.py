@@ -66,6 +66,7 @@ class PostConverter:
         c = self.content
         c = re.sub(r'<!-- /?wp:gallery.*?-->', '', c, flags=re.MULTILINE)
         c = re.sub(r'<ul.*?wp-block-gallery.*?>(.*?)</ul.*?>', '\g<1>', c, flags=re.MULTILINE)
+        c = re.sub(r'<ul.*?blocks-gallery-grid.*?>(.*?)</ul.*?>', '\g<1>', c, flags=re.MULTILINE)
         c = re.sub(r'<li.*?blocks-gallery-item.*?>.*?<img.*?src="([^\"]*)".*?/>.*?</li>',
                    r'<GALLERY_IMAGE_HOP class="gallery" src="\g<1>"/>', c, flags=re.MULTILINE)
         c = re.sub(r'<img.*?src="([^\"]*)".*?/>', '<img src="\g<1>"/>', c, flags=re.MULTILINE)
