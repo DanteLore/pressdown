@@ -51,7 +51,7 @@ class PressDown:
             .strip_excessive_newlines() \
             .to_string()
 
-        first_image = img.find_first_image(content)
+        first_image = img.convert_image(img.find_first_image(content))
 
         for url in img.find_all_images(content):
             image_url = img.convert_image(url)
